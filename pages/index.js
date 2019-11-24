@@ -1,8 +1,9 @@
 import React from 'react'
 import Head from 'next/head'
 import Nav from '../components/nav'
+import fetch from 'isomorphic-unfetch'
 
-const Home = () => (
+const Home = ({ storyDetails }) => (
   <div>
     <Head>
       <title>Home</title>
@@ -16,6 +17,12 @@ const Home = () => (
       <p className="description">
         To get started, edit <code>pages/index.js</code> and save to reload.
       </p>
+      { /* ここに story の情報を一覧表示する */ }
+      <ul>
+      { storyDetails.map(({ title, date, url }, index) => <li key={index}>
+          <a href={url}><p>{title} at {date.year}/{date.month}/{date.date}</p></a>
+        </li>) }
+      </ul>
 
       <div className="row">
         <a href="https://nextjs.org/docs" className="card">
@@ -84,5 +91,33 @@ const Home = () => (
     `}</style>
   </div>
 )
+
+Home.getInitialProps = async () => {
+  const req = await fetch("https://hacker-news.firebaseio.com/v0/newstories.json")
+  const storyIds = await req.json()
+  const hnurl = (id) => `https://hacker-news.firebaseio.com/v0/item/${id}.json`;
+  // 10件に一旦制限する
+  const storyReqs = storyIds.map((id) => fetch(hnurl(id))).slice(0, 10);
+  // API Aggregation
+  // Hackers News にあるストーリーのAPI とHackers News の詳細取得 API を結合している。
+  const storyRes = await Promise.all(storyReqs);
+  const storyRaw = await Promise.all(storyRes.map(s => s.json()));
+
+  // API Translation
+  // unixtime になっているデータを扱いやすい形式に変換する
+  const storyDetails = storyRaw.map(({ title, time, url }) => { 
+    const date = new Date(time * 1000)
+    return ({
+      title, 
+      date: {
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        date: date.getDate(),
+      },
+      url 
+    })
+  })
+  return { storyDetails }
+};
 
 export default Home
