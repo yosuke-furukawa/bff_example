@@ -11,3 +11,5 @@ $ yarn install
 ```
 $ yarn dev
 ```
+
+BFF のサンプルです。
